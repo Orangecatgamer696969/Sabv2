@@ -1,4 +1,127 @@
 -- This script was generated using the MoonVeil Obfuscator v1.4.5 [https://moonveil.cc]
+-- // Draggable FPS Counter + Glow (LocalScript) \\
+-- Place in StarterPlayer > StarterPlayerScripts
+
+local RunService = game:GetService("RunService")
+local Players    = game:GetService("Players")
+
+local player    = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+--------------------------------------------------------------------
+-- UI SETUP
+--------------------------------------------------------------------
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FPSCounterGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Background Frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 120, 0, 30)
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.BackgroundTransparency = 0.5
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Parent = screenGui
+
+-- Rounded corners
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = frame
+
+-- Glow (UIStroke) – will be recolored each update
+local glow = Instance.new("UIStroke")
+glow.Thickness = 2.5
+glow.Transparency = 0.6
+glow.Parent = frame
+
+-- Text label
+local textLabel = Instance.new("TextLabel")
+textLabel.Size = UDim2.new(1, -12, 1, 0)   -- padding
+textLabel.Position = UDim2.new(0, 6, 0, 0)
+textLabel.BackgroundTransparency = 1
+textLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+textLabel.Font = Enum.Font.Code
+textLabel.TextSize = 18
+textLabel.TextXAlignment = Enum.TextXAlignment.Center
+textLabel.Text = "FPS: --"
+textLabel.Parent = frame
+
+--------------------------------------------------------------------
+-- DRAGGING
+--------------------------------------------------------------------
+local dragging = false
+local dragStart, startPos
+
+frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+	end
+end)
+
+frame.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch) then
+		local delta = input.Position - dragStart
+		frame.Position = UDim2.new(
+			startPos.X.Scale, startPos.X.Offset + delta.X,
+			startPos.Y.Scale, startPos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+frame.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+--------------------------------------------------------------------
+-- FPS CALCULATION & UI UPDATE
+--------------------------------------------------------------------
+local lastTime = tick()
+local frameCount = 0
+
+RunService.RenderStepped:Connect(function()
+	frameCount += 1
+	local now = tick()
+	local delta = now - lastTime
+
+	if delta >= 0.2 then
+		-- Calculate FPS
+		local fps = math.floor(frameCount / delta + 0.5)
+
+		-- Update label
+		textLabel.Text = ("FPS: %d"):format(fps)
+
+		-- Choose color (text + glow)
+		local txtCol, glowCol
+		if fps >= 60 then
+			txtCol  = Color3.fromRGB(0, 255, 0)      -- Green
+			glowCol = Color3.fromRGB(100, 255, 100)
+		elseif fps >= 30 then
+			txtCol  = Color3.fromRGB(255, 200, 0)    -- Yellow
+			glowCol = Color3.fromRGB(255, 220, 100)
+		else
+			txtCol  = Color3.fromRGB(255, 0, 0)      -- Red
+			glowCol = Color3.fromRGB(255, 100, 100)
+		end
+
+		textLabel.TextColor3 = txtCol
+		glow.Color = glowCol
+
+		-- Reset counters
+		frameCount = 0
+		lastTime = now
+	end
+end)
+
 
 local Gb,Ed,Y,Kb,y,Ba=type,pairs,bit32.bxor,getmetatable
 local Wa,W,wd,H,Nd,Uc,l_,R,c,Vb,Gc,jb,He,C,jc,j,ec,qb,Vd,oa,wb,dd,ma;
