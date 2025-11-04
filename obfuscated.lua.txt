@@ -2,6 +2,251 @@
 -- // Draggable FPS Counter + Glow (LocalScript) \\
 -- Place in StarterPlayer > StarterPlayerScripts
 
+-- DRAGGABLE + MINIMIZABLE GLOBAL + TOP 3 EXECUTION COUNTER
+-- Delta / Krnl / Synapse – 100% WORKING
+
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+-- === CONFIG ===
+local FILE_NAME = "GlobalTop3ExecutionData.txt"
+local MAX_TOP = 3
+local MINIMIZED_SIZE = UDim2.new(0, 200, 0, 40)
+local FULL_SIZE = UDim2.new(0, 320, 0, 220)
+
+-- Load data
+local function loadData()
+    if isfile and isfile(FILE_NAME) then
+        local success, data = pcall(readfile, FILE_NAME)
+        if success and data then
+            local decoded = HttpService:JSONDecode(data)
+            if decoded then return decoded end
+        end
+    end
+    return { global = 0, games = {} }
+end
+
+-- Save data
+local function saveData(data)
+    if writefile then
+        pcall(function()
+            writefile(FILE_NAME, HttpService:JSONEncode(data))
+        end)
+    end
+end
+
+-- Current game
+local placeId = tostring(game.PlaceId)
+local gameName = "Unknown Game"
+pcall(function()
+    local info = MarketplaceService:GetProductInfo(game.PlaceId)
+    gameName = info.Name
+end)
+
+-- Update count
+local data = loadData()
+data.global = (data.global or 0) + 1
+data.games[placeId] = (data.games[placeId] or 0) + 1
+saveData(data)
+
+-- Top 3
+local function getTopGames()
+    local list = {}
+    for id, count in pairs(data.games) do
+        local name = "Unknown"
+        pcall(function()
+            name = MarketplaceService:GetProductInfo(tonumber(id)).Name
+        end)
+        table.insert(list, {id = id, name = name, count = count})
+    end
+    table.sort(list, function(a, b) return a.count > b.count end)
+    local top = {}
+    for i = 1, math.min(MAX_TOP, #list) do
+        table.insert(top, list[i])
+    end
+    return top
+end
+
+local topGames = getTopGames()
+
+-- === GUI ===
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MinimizeTop3Counter"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Main Frame
+local frame = Instance.new("Frame")
+frame.Size = FULL_SIZE
+frame.Position = UDim2.new(0, 15, 0, 15)
+frame.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 16)
+corner.Parent = frame
+
+local gradient = Instance.new("UIGradient")
+gradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 0, 255)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(200, 0, 255))
+}
+gradient.Rotation = 135
+gradient.Parent = frame
+
+-- Title Bar
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 40)
+titleBar.BackgroundTransparency = 1
+titleBar.Parent = frame
+
+-- Title Text
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -50, 1, 0)
+title.BackgroundTransparency = 1
+title.Text = "EXECUTION TRACKER"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextSize = 16
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Position = UDim2.new(0, 12, 0, 0)
+title.Parent = titleBar
+
+-- Minimize Button
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 36, 0, 36)
+minimizeBtn.Position = UDim2.new(1, -42, 0, 2)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+minimizeBtn.Text = "−"
+minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeBtn.TextSize = 20
+minimizeBtn.Font = Enum.Font.GothamBold
+minimizeBtn.AutoButtonColor = false
+minimizeBtn.Parent = titleBar
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 10)
+btnCorner.Parent = minimizeBtn
+
+-- Content (hidden when minimized)
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, 0, 1, -40)
+content.Position = UDim2.new(0, 0, 0, 40)
+content.BackgroundTransparency = 1
+content.ClipsDescendants = true
+content.Parent = frame
+
+-- Global Label
+local globalLabel = Instance.new("TextLabel")
+globalLabel.Size = UDim2.new(1, -20, 0.15, 0)
+globalLabel.Position = UDim2.new(0, 10, 0, 0)
+globalLabel.BackgroundTransparency = 1
+globalLabel.Text = "Global: " .. data.global
+globalLabel.TextColor3 = Color3.fromRGB(100, 255, 150)
+globalLabel.TextSize = 20
+globalLabel.Font = Enum.Font.GothamBold
+globalLabel.TextXAlignment = Enum.TextXAlignment.Left
+globalLabel.Parent = content
+
+-- Current Game
+local currentLabel = Instance.new("TextLabel")
+currentLabel.Size = UDim2.new(1, -20, 0.12, 0)
+currentLabel.Position = UDim2.new(0, 10, 0.15, 0)
+currentLabel.BackgroundTransparency = 1
+currentLabel.Text = "Now: " .. gameName .. " (#" .. data.games[placeId] .. ")"
+currentLabel.TextColor3 = Color3.fromRGB(255, 255, 100)
+currentLabel.TextSize = 15
+currentLabel.Font = Enum.Font.Gotham
+currentLabel.TextXAlignment = Enum.TextXAlignment.Left
+currentLabel.Parent = content
+
+-- Top Title
+local topTitle = Instance.new("TextLabel")
+topTitle.Size = UDim2.new(1, -20, 0.12, 0)
+topTitle.Position = UDim2.new(0, 10, 0.27, 0)
+topTitle.BackgroundTransparency = 1
+topTitle.Text = "TOP " .. MAX_TOP .. " GAMES"
+topTitle.TextColor3 = Color3.fromRGB(200, 200, 255)
+topTitle.TextSize = 16
+topTitle.Font = Enum.Font.GothamBold
+topTitle.TextXAlignment = Enum.TextXAlignment.Left
+topTitle.Parent = content
+
+-- Top 3 List
+for i = 1, MAX_TOP do
+    local yPos = 0.37 + (i - 1) * 0.12
+    local rankLabel = Instance.new("TextLabel")
+    rankLabel.Size = UDim2.new(1, -20, 0.12, 0)
+    rankLabel.Position = UDim2.new(0, 10, yPos, 0)
+    rankLabel.BackgroundTransparency = 1
+    rankLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
+    rankLabel.TextSize = 14
+    rankLabel.Font = Enum.Font.Gotham
+    rankLabel.TextXAlignment = Enum.TextXAlignment.Left
+    rankLabel.Parent = content
+
+    if topGames[i] then
+        rankLabel.Text = i .. ". " .. topGames[i].name .. " → " .. topGames[i].count .. "x"
+        if topGames[i].id == placeId then
+            rankLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+            rankLabel.Font = Enum.Font.GothamBold
+        end
+    else
+        rankLabel.Text = i .. ". —"
+        rankLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
+    end
+end
+
+-- === MINIMIZE / EXPAND LOGIC ===
+local isMinimized = false
+
+minimizeBtn.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        frame.Size = MINIMIZED_SIZE
+        content.Visible = false
+        minimizeBtn.Text = "+"
+        minimizeBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+    else
+        frame.Size = FULL_SIZE
+        content.Visible = true
+        minimizeBtn.Text = "−"
+        minimizeBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+    end
+end)
+
+-- === CONSOLE ===
+print("GLOBAL EXECUTION #" .. data.global)
+print("CURRENT: " .. gameName .. " (#" .. data.games[placeId] .. ")")
+print("TOP " .. MAX_TOP .. " GAMES:")
+for i, g in ipairs(topGames) do
+    print(i .. ". " .. g.name .. " → " .. g.count .. " times")
+end
+
+-- === RESET (Hold R) ===
+local canReset = true
+Mouse.KeyDown:Connect(function(key)
+    if key:lower() == "r" and canReset then
+        canReset = false
+        task.wait(3)
+        if Mouse.KeyDown then
+            if delfile and isfile(FILE_NAME) then
+                delfile(FILE_NAME)
+                print("ALL DATA RESET!")
+            end
+        end
+        canReset = true
+    end
+end)
+
+print("Hold 'R' for 3s to reset | Click '-' to minimize | Drag to move")
+
 local RunService = game:GetService("RunService")
 local Players    = game:GetService("Players")
 
